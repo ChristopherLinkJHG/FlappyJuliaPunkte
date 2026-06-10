@@ -13,7 +13,9 @@
   <h1>Flappy Bird - Roter Vogel & Bäume</h1>
   <div id="info">Drücke die Leertaste oder klicke, damit der Vogel fliegt!</div>
   <canvas id="game" width="400" height="600"></canvas>
-  <script>
+  <script type="module">
+    import { submitScores } from "./submitScores.js";
+
     const canvas = document.getElementById('game');
     const ctx = canvas.getContext('2d');
 
@@ -147,10 +149,27 @@
       });
     }
 
+    function handleGameOver() {
+      if (!gameOver) {
+        gameOver = true;
+        // Kurzes Timeout, damit der Game-Over-Text vor dem blockierenden prompt gezeichnet wird
+        setTimeout(async () => {
+          let playerName = prompt("Gib deinen Namen für die Bestenliste ein:");
+          if (playerName && playerName.trim()) {
+            try {
+              await submitScores("Flappy Bird", score, playerName);
+            } catch (err) {
+              console.error("Fehler beim Senden des Scores:", err);
+            }
+          }
+        }, 50);
+      }
+    }
+
     function checkCollision() {
       // Boden oder Decke
       if (bird.y + bird.h/2 > canvas.height - groundHeight || bird.y - bird.h/2 < 0) {
-        gameOver = true;
+        handleGameOver();
       }
       // Bäume
       trees.forEach(tree => {
@@ -159,7 +178,7 @@
           bird.x - bird.w/2 < tree.x + treeWidth &&
           (bird.y - bird.h/2 < tree.top || bird.y + bird.h/2 > tree.bottom)
         ) {
-          gameOver = true;
+          handleGameOver();
         }
       });
     }
