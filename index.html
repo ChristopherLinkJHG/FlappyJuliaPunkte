@@ -162,7 +162,6 @@
             }
           }
         }, 50);
-        score = 0;
       }
     }
 
@@ -244,6 +243,7 @@
     function flap() {
       if (gameOver) {
         resetGame();
+        score = 0;
         gameLoop();
       } else {
         bird.velocity = bird.jump;
