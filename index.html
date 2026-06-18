@@ -2,16 +2,17 @@
 <html lang="de">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Flappy Bird mit Bäumen</title>
   <style>
-    body { text-align: center; background: #aee9ff; font-family: Arial, sans-serif; }
+    body { text-align: center; background: #aee9ff; font-family: Arial, sans-serif; touch-action: manipulation; }
     canvas { background: #87ceeb; display: block; margin: 20px auto; border: 2px solid #555; }
     #info { color: #333; }
   </style>
 </head>
 <body>
   <h1>Flappy Bird - Roter Vogel & Bäume</h1>
-  <div id="info">Drücke die Leertaste oder klicke, damit der Vogel fliegt!</div>
+  <div id="info">Drücke die Leertaste oder tippe/klicke, damit der Vogel fliegt!</div>
   <canvas id="game" width="400" height="600"></canvas>
   <script type="module">
 /*     import { submitScores } from "../submitScores.js"; */
@@ -242,7 +243,7 @@
         ctx.font = "20px Arial";
         ctx.save();
         ctx.textAlign = "center";
-        ctx.fillText("Drücke Leertaste oder klicke", canvas.width / 2, 400);
+        ctx.fillText("Drücke Leertaste oder tippe/klicke", canvas.width / 2, 400);
         ctx.fillText("zum Neustart!", canvas.width / 2, 425);
         ctx.restore();
         return;
@@ -293,10 +294,15 @@
     document.addEventListener('keydown', function(e) {
       if (e.code === "Space") flap();
     });
-    canvas.addEventListener('mousedown', flap);
+    document.addEventListener('pointerdown', function(e) {
+      if (!e.isPrimary || (e.pointerType === "mouse" && e.button !== 0)) return;
+      e.preventDefault();
+      flap();
+    });
 
     resetGame();
     requestAnimationFrame(gameLoop);
   </script>
 </body>
 </html>
+
