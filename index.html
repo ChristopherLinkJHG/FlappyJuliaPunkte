@@ -6,19 +6,42 @@
   <title>Flappy Bird mit Bäumen</title>
   <style>
     body { text-align: center; background: #aee9ff; font-family: Arial, sans-serif; touch-action: manipulation; }
-    canvas { background: #87ceeb; display: block; margin: 20px auto; border: 2px solid #555; }
+    #gameContainer { position: relative; width: 404px; margin: 20px auto; }
+    canvas { background: #87ceeb; display: block; border: 2px solid #555; }
     #info { color: #333; }
+    #continueButton {
+      display: none;
+      position: absolute;
+      left: 50%;
+      top: 450px;
+      z-index: 1;
+      transform: translateX(-50%);
+      padding: 10px 24px;
+      border: 0;
+      border-radius: 8px;
+      background: #228B22;
+      color: #fff;
+      font-size: 20px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    #continueButton:hover { background: #196f19; }
+    #continueButton:focus-visible { outline: 3px solid #333; outline-offset: 3px; }
   </style>
 </head>
 <body>
   <h1>Flappy Bird - Roter Vogel & Bäume</h1>
   <div id="info">Drücke die Leertaste oder tippe/klicke, damit der Vogel fliegt!</div>
-  <canvas id="game" width="400" height="600"></canvas>
+  <div id="gameContainer">
+    <canvas id="game" width="400" height="600"></canvas>
+    <button id="continueButton" type="button">Weiter</button>
+  </div>
   <script type="module">
-/*     import { submitScores } from "../submitScores.js"; */
+    import { submitScores } from "../submitScores.js";
 
     const canvas = document.getElementById('game');
     const ctx = canvas.getContext('2d');
+    const continueButton = document.getElementById('continueButton');
 
     // Vogel Eigenschaften
     let bird = { x: 80, y: 300, w: 30, h: 30, velocity: 2, gravity: 0.15, jump: -4.5 };
@@ -159,20 +182,11 @@
       });
     }
 
-    function handleGameOver() {
+    async function handleGameOver() {
       if (!gameOver) {
         gameOver = true;
-        // Kurzes Timeout, damit der Game-Over-Text vor dem blockierenden prompt gezeichnet wird
-        // setTimeout(async () => {
-        //   let playerName = prompt("Gib deinen Namen für die Bestenliste ein:");
-        //   if (playerName && playerName.trim()) {
-        //     try {
-        //       await submitScores("Flappy Bird", score, playerName);
-        //     } catch (err) {
-        //       console.error("Fehler beim Senden des Scores:", err);
-        //     }
-        //   }
-        // }, 50);
+        continueButton.style.display = 'block';
+        await submitScores("Flappy Bird", score);
       }
     }
 
@@ -243,8 +257,8 @@
         ctx.font = "20px Arial";
         ctx.save();
         ctx.textAlign = "center";
-        ctx.fillText("Drücke Leertaste oder tippe/klicke", canvas.width / 2, 400);
-        ctx.fillText("zum Neustart!", canvas.width / 2, 425);
+        ctx.fillText("Klicke auf „Weiter“,", canvas.width / 2, 400);
+        ctx.fillText("um neu zu starten!", canvas.width / 2, 425);
         ctx.restore();
         return;
       }
@@ -282,13 +296,8 @@
 
     // Steuerung
     function flap() {
-      if (gameOver) {
-        resetGame();
-        score = 0;
-        requestAnimationFrame(gameLoop);
-      } else {
-        bird.velocity = bird.jump;
-      }
+      if (gameOver) return;
+      bird.velocity = bird.jump;
     }
 
     document.addEventListener('keydown', function(e) {
@@ -299,10 +308,19 @@
       e.preventDefault();
       flap();
     });
+    continueButton.addEventListener('pointerdown', function(e) {
+      e.stopPropagation();
+    });
+    continueButton.addEventListener('click', function() {
+      if (!gameOver) return;
+      score = 0;
+      continueButton.style.display = 'none';
+      resetGame();
+      requestAnimationFrame(gameLoop);
+    });
 
     resetGame();
     requestAnimationFrame(gameLoop);
   </script>
 </body>
 </html>
-
