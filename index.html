@@ -14,7 +14,7 @@
   <div id="info">Drücke die Leertaste oder klicke, damit der Vogel fliegt!</div>
   <canvas id="game" width="400" height="600"></canvas>
   <script type="module">
-    import { submitScores } from "../submitScores.js";
+/*     import { submitScores } from "../submitScores.js"; */
 
     const canvas = document.getElementById('game');
     const ctx = canvas.getContext('2d');
@@ -30,6 +30,10 @@
     let score = 0;
     let gameOver = false;
     let groundHeight = 40; // Höhe des Bodens
+    const fixedTimeStep = 1000 / 110;
+    const maxFrameTime = 250;
+    let lastTimestamp = null;
+    let accumulator = 0;
 
     // Wolken-Array
     let clouds = [
@@ -44,6 +48,8 @@
       bird.velocity = 0;
       trees = [];
       gameOver = false;
+      lastTimestamp = null;
+      accumulator = 0;
     }
 
     function drawBird() {
@@ -142,7 +148,11 @@
         ctx.beginPath();
         ctx.arc(cloud.x - cloud.r*0.7, cloud.y + 5, cloud.r*0.6, 0, Math.PI*2);
         ctx.fill();
-        // Bewegung
+      });
+    }
+
+    function moveClouds() {
+      clouds.forEach(cloud => {
         cloud.x += cloud.dx;
         if (cloud.x - cloud.r > canvas.width) cloud.x = -cloud.r;
       });
@@ -152,16 +162,16 @@
       if (!gameOver) {
         gameOver = true;
         // Kurzes Timeout, damit der Game-Over-Text vor dem blockierenden prompt gezeichnet wird
-        setTimeout(async () => {
-          let playerName = prompt("Gib deinen Namen für die Bestenliste ein:");
-          if (playerName && playerName.trim()) {
-            try {
-              await submitScores("Flappy Bird", score, playerName);
-            } catch (err) {
-              console.error("Fehler beim Senden des Scores:", err);
-            }
-          }
-        }, 50);
+        // setTimeout(async () => {
+        //   let playerName = prompt("Gib deinen Namen für die Bestenliste ein:");
+        //   if (playerName && playerName.trim()) {
+        //     try {
+        //       await submitScores("Flappy Bird", score, playerName);
+        //     } catch (err) {
+        //       console.error("Fehler beim Senden des Scores:", err);
+        //     }
+        //   }
+        // }, 50);
       }
     }
 
@@ -188,40 +198,19 @@
       ctx.fillText("Score: " + score, 10, 40);
     }
 
-    function gameLoop() {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-      drawClouds(); // Wolken im Hintergrund
-      drawGround(); // Boden zeichnen
-
-      if (gameOver) {
-        ctx.fillStyle = "#e74c3c";
-        ctx.font = "48px Arial";
-        ctx.fillText("Game Over!", 60, 300);
-        ctx.font = "28px Arial";
-        ctx.fillStyle = "#222";
-        ctx.fillText("Score: " + score, 140, 350);
-        ctx.font = "20px Arial";
-        ctx.fillText("Drücke Leertaste oder klicke zum Neustart!", 60, 400);
-        return;
-      }
+    function updateGame() {
+      moveClouds();
 
       // Vogel bewegen
       bird.velocity += bird.gravity;
       bird.y += bird.velocity;
 
-      // Bäume bewegen und zeichnen
+      // Bäume bewegen
       moveTrees();
-      drawTrees();
-
-      // Vogel zeichnen
-      drawBird();
-
-      // Score anzeigen
-      drawScore();
 
       // Kollision prüfen
       checkCollision();
+      if (gameOver) return;
 
       // Bäume erzeugen
       if (trees.length === 0 || trees[trees.length-1].x < canvas.width - 220) {
@@ -235,8 +224,59 @@
           tree.passed = true;
         }
       });
+    }
 
-      requestAnimationFrame(gameLoop);
+    function drawGame() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      drawClouds(); // Wolken im Hintergrund
+      drawGround(); // Boden zeichnen
+
+      if (gameOver) {
+        ctx.fillStyle = "#e74c3c";
+        ctx.font = "48px Arial";
+        ctx.fillText("Game Over!", 60, 300);
+        ctx.font = "28px Arial";
+        ctx.fillStyle = "#222";
+        ctx.fillText("Score: " + score, 140, 350);
+        ctx.font = "20px Arial";
+        ctx.save();
+        ctx.textAlign = "center";
+        ctx.fillText("Drücke Leertaste oder klicke", canvas.width / 2, 400);
+        ctx.fillText("zum Neustart!", canvas.width / 2, 425);
+        ctx.restore();
+        return;
+      }
+
+      // Bäume zeichnen
+      drawTrees();
+
+      // Vogel zeichnen
+      drawBird();
+
+      // Score anzeigen
+      drawScore();
+    }
+
+    function gameLoop(timestamp) {
+      if (lastTimestamp === null) {
+        lastTimestamp = timestamp;
+      }
+
+      const elapsed = Math.min(timestamp - lastTimestamp, maxFrameTime);
+      lastTimestamp = timestamp;
+      accumulator += elapsed;
+
+      while (accumulator >= fixedTimeStep && !gameOver) {
+        updateGame();
+        accumulator -= fixedTimeStep;
+      }
+
+      drawGame();
+
+      if (!gameOver) {
+        requestAnimationFrame(gameLoop);
+      }
     }
 
     // Steuerung
@@ -244,7 +284,7 @@
       if (gameOver) {
         resetGame();
         score = 0;
-        gameLoop();
+        requestAnimationFrame(gameLoop);
       } else {
         bird.velocity = bird.jump;
       }
@@ -256,7 +296,7 @@
     canvas.addEventListener('mousedown', flap);
 
     resetGame();
-    gameLoop();
+    requestAnimationFrame(gameLoop);
   </script>
 </body>
 </html>
