@@ -5,15 +5,42 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Flappy Bird mit Bäumen</title>
   <style>
-    body { text-align: center; background: #aee9ff; font-family: Arial, sans-serif; touch-action: manipulation; }
-    #gameContainer { position: relative; width: 404px; margin: 20px auto; }
-    canvas { background: #87ceeb; display: block; border: 2px solid #555; }
-    #info { color: #333; }
+    html,
+    body {
+      width: 100%;
+      height: 100vh;
+      height: 100dvh;
+      margin: 0;
+      overflow: hidden;
+      overscroll-behavior: none;
+    }
+    body {
+      display: grid;
+      place-items: center;
+      background: #aee9ff;
+      font-family: Arial, sans-serif;
+      touch-action: none;
+    }
+    #gameContainer {
+      position: relative;
+      width: min(100vw, calc(100vh * 2 / 3));
+      height: min(100vh, calc(100vw * 3 / 2));
+      width: min(100vw, calc(100dvh * 2 / 3));
+      height: min(100dvh, calc(100vw * 3 / 2));
+    }
+    canvas {
+      width: 100%;
+      height: 100%;
+      box-sizing: border-box;
+      background: #87ceeb;
+      display: block;
+      border: 2px solid #555;
+    }
     #continueButton {
       display: none;
       position: absolute;
       left: 50%;
-      top: 450px;
+      top: 75%;
       z-index: 1;
       transform: translateX(-50%);
       padding: 10px 24px;
@@ -30,8 +57,6 @@
   </style>
 </head>
 <body>
-  <h1>Flappy Bird - Roter Vogel & Bäume</h1>
-  <div id="info">Drücke die Leertaste oder tippe/klicke, damit der Vogel fliegt!</div>
   <div id="gameContainer">
     <canvas id="game" width="400" height="600"></canvas>
     <button id="continueButton" type="button">Weiter</button>
@@ -54,10 +79,11 @@
     let score = 0;
     let gameOver = false;
     let groundHeight = 40; // Höhe des Bodens
-    const fixedTimeStep = 1000 / 110;
+    const birdHitRadius = 12;
+    const collisionPadding = 3;
+    const fixedTimeStep = 1000 / 100;
     const maxFrameTime = 250;
     let lastTimestamp = null;
-    let accumulator = 0;
 
     // Wolken-Array
     let clouds = [
@@ -73,7 +99,6 @@
       trees = [];
       gameOver = false;
       lastTimestamp = null;
-      accumulator = 0;
     }
 
     function drawBird() {
@@ -134,8 +159,8 @@
       });
     }
 
-    function moveTrees() {
-      trees.forEach(tree => tree.x -= treeSpeed);
+    function moveTrees(stepScale) {
+      trees.forEach(tree => tree.x -= treeSpeed * stepScale);
       // Entferne Bäume, die aus dem Bild sind
       if (trees.length && trees[0].x + treeWidth < 0) trees.shift();
     }
@@ -175,9 +200,9 @@
       });
     }
 
-    function moveClouds() {
+    function moveClouds(stepScale) {
       clouds.forEach(cloud => {
-        cloud.x += cloud.dx;
+        cloud.x += cloud.dx * stepScale;
         if (cloud.x - cloud.r > canvas.width) cloud.x = -cloud.r;
       });
     }
@@ -192,15 +217,21 @@
 
     function checkCollision() {
       // Boden oder Decke
-      if (bird.y + bird.h/2 > canvas.height - groundHeight || bird.y - bird.h/2 < 0) {
+      if (bird.y + birdHitRadius > canvas.height - groundHeight || bird.y - birdHitRadius < 0) {
         handleGameOver();
       }
       // Bäume
       trees.forEach(tree => {
+        const overlapsTree =
+          bird.x + birdHitRadius > tree.x + collisionPadding &&
+          bird.x - birdHitRadius < tree.x + treeWidth - collisionPadding;
+        const hitsGapEdge =
+          bird.y - birdHitRadius < tree.top - collisionPadding ||
+          bird.y + birdHitRadius > tree.bottom + collisionPadding;
+
         if (
-          bird.x + bird.w/2 > tree.x &&
-          bird.x - bird.w/2 < tree.x + treeWidth &&
-          (bird.y - bird.h/2 < tree.top || bird.y + bird.h/2 > tree.bottom)
+          overlapsTree &&
+          hitsGapEdge
         ) {
           handleGameOver();
         }
@@ -213,15 +244,15 @@
       ctx.fillText("Score: " + score, 10, 40);
     }
 
-    function updateGame() {
-      moveClouds();
+    function updateGame(stepScale) {
+      moveClouds(stepScale);
 
       // Vogel bewegen
-      bird.velocity += bird.gravity;
-      bird.y += bird.velocity;
+      bird.velocity += bird.gravity * stepScale;
+      bird.y += bird.velocity * stepScale;
 
       // Bäume bewegen
-      moveTrees();
+      moveTrees(stepScale);
 
       // Kollision prüfen
       checkCollision();
@@ -280,11 +311,10 @@
 
       const elapsed = Math.min(timestamp - lastTimestamp, maxFrameTime);
       lastTimestamp = timestamp;
-      accumulator += elapsed;
+      const stepScale = elapsed / fixedTimeStep;
 
-      while (accumulator >= fixedTimeStep && !gameOver) {
-        updateGame();
-        accumulator -= fixedTimeStep;
+      if (!gameOver) {
+        updateGame(stepScale);
       }
 
       drawGame();
@@ -301,8 +331,14 @@
     }
 
     document.addEventListener('keydown', function(e) {
-      if (e.code === "Space") flap();
+      if (e.code === "Space") {
+        e.preventDefault();
+        flap();
+      }
     });
+    document.addEventListener('touchmove', function(e) {
+      e.preventDefault();
+    }, { passive: false });
     document.addEventListener('pointerdown', function(e) {
       if (!e.isPrimary || (e.pointerType === "mouse" && e.button !== 0)) return;
       e.preventDefault();
